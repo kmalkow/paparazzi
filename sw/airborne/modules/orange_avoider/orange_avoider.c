@@ -58,8 +58,8 @@ enum navigation_state_t navigation_state = SEARCH_FOR_SAFE_HEADING;
 int32_t color_count = 0;                // orange color count from color filter for obstacle detection
 // int32_t no_orange_constant = 10000;     // constant substracted from color_count_threshold to symbolize no orange
 int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that the way ahead is safe.
-float heading_increment = 10.f;          // heading angle increment [deg]
-float maxDistance = 0.6;               // max waypoint displacement [m]
+float heading_increment = 15.f;          // heading angle increment [deg]
+float maxDistance = 1.2;               // max waypoint displacement [m]
 
 const int16_t max_trajectory_confidence = 5; // number of consecutive negative object detections to be sure we are obstacle free
 
