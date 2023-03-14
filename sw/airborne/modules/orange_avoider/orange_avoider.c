@@ -65,11 +65,10 @@ static uint8_t increase_nav_heading(float incrementDegrees);
 ////// STATES AND VARIABLE DEFINITION AND INITIALISATION //////
 enum navigation_state_t {
   SAFE,
-  // OBSTACLE_FOUND_ORANGE,
-  OBSTACLE_FOUND_OPTICALFLOW,
   SEARCH_SAFE_HEADING_ORANGE,
   SEARCH_SAFE_HEADING_OPTICALFLOW,
   STOP_YAW_ORANGE,
+  STOP_YAW_OPTICAL,
   OUT_OF_BOUNDS,
 };
 
@@ -93,7 +92,8 @@ const int16_t max_trajectory_confidence_opticalflow = 5; // number of consecutiv
 float maxDistance = 0.8;                                 // max waypoint displacement [m]
 float heading_increment = 12.f;                          // heading angle increment [deg]
 
-int yaw_stop_counter = 0;
+int yaw_stop_counter_orange = 0;
+int yaw_stop_counter_optical = 0;
 float yaw_stop_heading_increment = 8.f;                 // heading angle increment for stop and yaw [deg]
 float yaw_stop_neg_heading_increment = -8.f;            // negative heading angle increment for stop and yaw [deg]
 
@@ -209,30 +209,17 @@ void orange_avoider_periodic(void)
       } else if (obstacle_free_confidence_orange == 0) {
         navigation_state = STOP_YAW_ORANGE;
         orange_detection = 1;
-      // } else if (obstacle_free_confidence_opticalflow == 0) {
-      //   navigation_state = OBSTACLE_FOUND_OPTICALFLOW;
-      //   opticalflow_detection = 1;
+      } else if (obstacle_free_confidence_opticalflow == 0) {
+        navigation_state = STOP_YAW_OPTICAL;
+        opticalflow_detection = 1;
       } else {
         orange_detection = 0;
         opticalflow_detection = 0;
         out_of_bounds_detection = 0;
-        yaw_stop_counter = 0;
+        yaw_stop_counter_orange = 0;
+        yaw_stop_counter_optical = 0;
         moveWaypointForward(WP_GOAL, moveDistance);
       }
-      break;
-    // case OBSTACLE_FOUND_ORANGE:
-    //   // Stop
-    //   waypoint_move_here_2d(WP_GOAL);
-    //   waypoint_move_here_2d(WP_TRAJECTORY);
-
-    //   navigation_state = STOP_YAW_ORANGE;
-    //   break;
-    case OBSTACLE_FOUND_OPTICALFLOW:
-      // Stop
-      waypoint_move_here_2d(WP_GOAL);
-      waypoint_move_here_2d(WP_TRAJECTORY);
-
-      navigation_state = SEARCH_SAFE_HEADING_OPTICALFLOW;
       break;
     case SEARCH_SAFE_HEADING_ORANGE:
       // Stop
@@ -246,7 +233,6 @@ void orange_avoider_periodic(void)
       }
       break; 
     case SEARCH_SAFE_HEADING_OPTICALFLOW:
-
       // Stop
       waypoint_move_here_2d(WP_GOAL);
       waypoint_move_here_2d(WP_TRAJECTORY);
@@ -258,27 +244,50 @@ void orange_avoider_periodic(void)
       }
       break;
     case STOP_YAW_ORANGE:
-      yaw_stop_counter++; // Update counter after object detection
-      VERBOSE_PRINT("Counter: %d \n", yaw_stop_counter); // Print counter value
+      yaw_stop_counter_orange++; // Update counter after object detection
+      VERBOSE_PRINT("Orange counter: %d \n", yaw_stop_counter_orange); // Print counter value
 
       // Stop
       waypoint_move_here_2d(WP_GOAL);
       waypoint_move_here_2d(WP_TRAJECTORY);
 
-
-      if (yaw_stop_counter <= 10) {
+      if (yaw_stop_counter_orange <= 10) {
         increase_nav_heading(yaw_stop_heading_increment);
       }
 
-      if (yaw_stop_counter > 11 && yaw_stop_counter <= 13)
+      if (yaw_stop_counter_orange > 11 && yaw_stop_counter_orange <= 13)
       increase_nav_heading(0.0);
       
-      if (yaw_stop_counter > 13 && yaw_stop_counter <= 33) {
+      if (yaw_stop_counter_orange > 13 && yaw_stop_counter_orange <= 33) {
         increase_nav_heading(yaw_stop_neg_heading_increment);
       }
       
-      if (yaw_stop_counter > 33){
+      if (yaw_stop_counter_orange > 33){
         navigation_state = SEARCH_SAFE_HEADING_ORANGE;
+      }
+
+      break;
+    case STOP_YAW_OPTICAL:
+      yaw_stop_counter_optical++; // Update counter after object detection
+      VERBOSE_PRINT("Optical counter: %d \n", yaw_stop_counter_optical); // Print counter value
+     
+     // Stop
+      waypoint_move_here_2d(WP_GOAL);
+      waypoint_move_here_2d(WP_TRAJECTORY);
+
+      if (yaw_stop_counter_optical <= 10) {
+        increase_nav_heading(yaw_stop_heading_increment);
+      }
+
+      if (yaw_stop_counter_optical > 11 && yaw_stop_counter_optical <= 13)
+      increase_nav_heading(0.0);
+      
+      if (yaw_stop_counter_optical > 13 && yaw_stop_counter_optical <= 33) {
+        increase_nav_heading(yaw_stop_neg_heading_increment);
+      }
+      
+      if (yaw_stop_counter_optical > 33){
+        navigation_state = SEARCH_SAFE_HEADING_OPTICALFLOW;
       }
 
       break;   
