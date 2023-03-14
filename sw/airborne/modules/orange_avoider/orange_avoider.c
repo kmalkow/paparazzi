@@ -21,7 +21,7 @@
 /**
  * @file "modules/orange_avoider/orange_avoider.c"
  * @author Roland Meertens
- * @edit by Kevin Malkow and Group 5 for the course (AE4317) Autonomous Flight of Micro Air Vehicles 
+ * @edit by Kevin Malkow for the course (AE4317) Autonomous Flight of Micro Air Vehicles 
  * @year 2022/2023  
  *
  * This module is used in combination with a color filter (cv_detect_color_object.c), optic flow (opticflow_module.c), 
@@ -65,10 +65,11 @@ static uint8_t increase_nav_heading(float incrementDegrees);
 ////// STATES AND VARIABLE DEFINITION AND INITIALISATION //////
 enum navigation_state_t {
   SAFE,
-  OBSTACLE_FOUND_ORANGE,
+  // OBSTACLE_FOUND_ORANGE,
   OBSTACLE_FOUND_OPTICALFLOW,
   SEARCH_SAFE_HEADING_ORANGE,
   SEARCH_SAFE_HEADING_OPTICALFLOW,
+  STOP_YAW_ORANGE,
   OUT_OF_BOUNDS,
 };
 
@@ -91,6 +92,10 @@ const int16_t max_trajectory_confidence_opticalflow = 5; // number of consecutiv
 
 float maxDistance = 0.8;                                 // max waypoint displacement [m]
 float heading_increment = 12.f;                          // heading angle increment [deg]
+
+int yaw_stop_counter = 0;
+float yaw_stop_heading_increment = 8.f;                 // heading angle increment for stop and yaw [deg]
+float yaw_stop_neg_heading_increment = -8.f;            // negative heading angle increment for stop and yaw [deg]
 
 
 /*
@@ -169,7 +174,7 @@ void orange_avoider_periodic(void)
   ////// PRINT DETECTION VALUES //////
   //VERBOSE_PRINT("Color_count: %d  threshold: %d state: %d \n", color_count, color_count_threshold, navigation_state); // Print visual detection pixel colour values and navigation state
   //VERBOSE_PRINT("Divergence size: %lf Divergence threshold: %lf \n", div_size, divergence_threshold); // Print optical flow divergence size
-  VERBOSE_PRINT("Optical Flow Detection: %d Orange Detection: %d Out of Bounds Detection: %d Obstacle Free Optic: %d Obstacle Free Orange: %d \n", opticalflow_detection, orange_detection, out_of_bounds_detection, obstacle_free_confidence_opticalflow, obstacle_free_confidence_orange); // Print optical flow and orange detection
+  //VERBOSE_PRINT("Optical Flow Detection: %d Orange Detection: %d Out of Bounds Detection: %d Obstacle Free Optic: %d Obstacle Free Orange: %d \n", opticalflow_detection, orange_detection, out_of_bounds_detection, obstacle_free_confidence_opticalflow, obstacle_free_confidence_orange); // Print optical flow and orange detection
   
   ////// DETERMINE OBSTACLE FREE CONFIDENCE //////
   if (color_count < color_count_threshold) {
@@ -202,25 +207,26 @@ void orange_avoider_periodic(void)
         navigation_state = OUT_OF_BOUNDS;
         out_of_bounds_detection = 1;
       } else if (obstacle_free_confidence_orange == 0) {
-        navigation_state = OBSTACLE_FOUND_ORANGE;
+        navigation_state = STOP_YAW_ORANGE;
         orange_detection = 1;
-      } else if (obstacle_free_confidence_opticalflow == 0) {
-        navigation_state = OBSTACLE_FOUND_OPTICALFLOW;
-        opticalflow_detection = 1;
+      // } else if (obstacle_free_confidence_opticalflow == 0) {
+      //   navigation_state = OBSTACLE_FOUND_OPTICALFLOW;
+      //   opticalflow_detection = 1;
       } else {
         orange_detection = 0;
         opticalflow_detection = 0;
         out_of_bounds_detection = 0;
+        yaw_stop_counter = 0;
         moveWaypointForward(WP_GOAL, moveDistance);
       }
       break;
-    case OBSTACLE_FOUND_ORANGE:
-      // Stop
-      waypoint_move_here_2d(WP_GOAL);
-      waypoint_move_here_2d(WP_TRAJECTORY);
+    // case OBSTACLE_FOUND_ORANGE:
+    //   // Stop
+    //   waypoint_move_here_2d(WP_GOAL);
+    //   waypoint_move_here_2d(WP_TRAJECTORY);
 
-      navigation_state = SEARCH_SAFE_HEADING_ORANGE;
-      break;
+    //   navigation_state = STOP_YAW_ORANGE;
+    //   break;
     case OBSTACLE_FOUND_OPTICALFLOW:
       // Stop
       waypoint_move_here_2d(WP_GOAL);
@@ -240,6 +246,7 @@ void orange_avoider_periodic(void)
       }
       break; 
     case SEARCH_SAFE_HEADING_OPTICALFLOW:
+
       // Stop
       waypoint_move_here_2d(WP_GOAL);
       waypoint_move_here_2d(WP_TRAJECTORY);
@@ -249,7 +256,32 @@ void orange_avoider_periodic(void)
       if (obstacle_free_confidence_opticalflow >= 5){
         navigation_state = SAFE;
       }
-      break; 
+      break;
+    case STOP_YAW_ORANGE:
+      yaw_stop_counter++; // Update counter after object detection
+      VERBOSE_PRINT("Counter: %d \n", yaw_stop_counter); // Print counter value
+
+      // Stop
+      waypoint_move_here_2d(WP_GOAL);
+      waypoint_move_here_2d(WP_TRAJECTORY);
+
+
+      if (yaw_stop_counter <= 10) {
+        increase_nav_heading(yaw_stop_heading_increment);
+      }
+
+      if (yaw_stop_counter > 11 && yaw_stop_counter <= 13)
+      increase_nav_heading(0.0);
+      
+      if (yaw_stop_counter > 13 && yaw_stop_counter <= 33) {
+        increase_nav_heading(yaw_stop_neg_heading_increment);
+      }
+      
+      if (yaw_stop_counter > 33){
+        navigation_state = SEARCH_SAFE_HEADING_ORANGE;
+      }
+
+      break;   
     case OUT_OF_BOUNDS:
       // Stop
       waypoint_move_here_2d(WP_GOAL);
