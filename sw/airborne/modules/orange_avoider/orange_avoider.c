@@ -81,7 +81,8 @@ int out_of_bounds_detection = 0;                         // used for debugging, 
 int32_t color_count = 0;                                 // orange color count from color filter for obstacle detection
 float oa_color_count_frac = 0.18f;
 
-float div_size = 0;                                      // divergence size from optical flow for obstacle detection
+float div_size = 0;                                      // divergence size from optical flow for obstacle detection for current values
+float div_size_new = 0;                                  // divergence size from optical flow for obstacle detection for new values
 float divergence_threshold = 0.015;                      // threshold for the divergence value for optical flow object detection
 
 int16_t obstacle_free_confidence_orange = 0;             // a measure of how certain we are that the way ahead is safe for orange detection
@@ -132,7 +133,7 @@ static void optical_flow_cb(uint8_t __attribute__((unused)) sender_id,
                             float __attribute__((unused)) quality, 
                             float size_divergence) 
 {
-  div_size = size_divergence;
+  div_size_new = size_divergence;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -162,6 +163,14 @@ void orange_avoider_periodic(void)
   if(!autopilot_in_flight()){
     return;
   }
+
+  // Average out flow_x values using a moving average filter, x is new value, y is old value
+  uint32_t moving_average_filter(uint32_t x, uint32_t y)
+  {
+    return ((0.35*x) + (1-0.35)*y);
+  }
+
+  div_size = moving_average_filter(div_size_new, div_size);
 
   ////// COMPUTE CURRENT COLOR THRESHOLDS //////
   int32_t color_count_threshold = oa_color_count_frac * front_camera.output_size.w * front_camera.output_size.h; // Front_camera defined in airframe xml, with the video_capture module
