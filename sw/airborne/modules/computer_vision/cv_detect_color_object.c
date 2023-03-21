@@ -261,7 +261,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
     uint8_t *buffer = img->buf;
 
     // new inits
-    *safe_heading = 2;  // default 0; middle; negative = left; positive = right
+    *safe_heading = 0;  // default 0; middle; negative = left; positive = right
     int32_t cnt_green = 288;
     int32_t heading_confidence_arr[5];
     *safe_heading_confidence = cnt_green;
@@ -344,12 +344,15 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
             //Compare elements of array with max
             if (heading_confidence_arr[j] > maxValue) {
                 maxValue = heading_confidence_arr[j];
-                *safe_heading = j;
+                *safe_heading = j-2;
                 *safe_heading_confidence = heading_confidence_arr[j];
             }
         }
         // PRINT("TEST IN cv_detect_color_object");
         // PRINT("safe_heading: %d  safe_heading_confidence: %d\n", safe_heading, safe_heading_confidence);
+    } else {
+      *safe_heading = 0;
+      *safe_heading_confidence = heading_confidence_arr[2];
     }
 
     return cnt;

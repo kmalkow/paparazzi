@@ -73,6 +73,7 @@ enum navigation_state_t {
 enum navigation_state_t navigation_state = SAFE;
 
 int orange_detection = 0;                                // used for debugging, 0=not detected, 1=detected
+int green_detection = 0;
 int div_diff_detection = 0;                     // used for debugging, 0=not detected, 1=detected
 int div_size_detection = 0;                      // used for debugging, 0=not detected, 1=detected
 // int opticalflow_detection_Zero = 0;                      // triggers detection when divergence difference is 0
@@ -81,8 +82,10 @@ int out_of_bounds_detection = 0;                         // used for debugging, 
 
 int32_t color_count = 0;                                 // orange color count from color filter for obstacle detection
 float oa_color_count_frac = 0.18f;
+int32_t floor_count_threshold = 290;
 
 int32_t safe_heading_g;
+int32_t safe_heading_increment = 10;                       // CW heading angle increment [deg]
 int32_t safe_heading_confidence_g;
 
 float div_size = 0.f;                                    // divergence size -> see size_divergence.c
@@ -91,9 +94,11 @@ int32_t divergence_threshold = 0.3;                        // threshold for the 
 int32_t divergence_difference_threshold = 1.0;             // threshold for the divergence difference value for optical flow object detection
 
 int16_t obstacle_free_confidence_orange = 0;             // a measure of how certain we are that the way ahead is safe for orange detection
+int16_t obstacle_free_confidence_green = 0;             // a measure of how certain we are that the way ahead is safe for orange detection
 int16_t obstacle_free_confidence_div_diff = 0;
 int16_t obstacle_free_confidence_div_size = 0;
 const int16_t max_trajectory_confidence_orange = 5;      // number of consecutive negative object detections to be sure we are obstacle free for orange detection
+const int16_t max_trajectory_confidence_green = 5;      // number of consecutive negative object detections to be sure we are obstacle free for orange detection
 const int16_t max_trajectory_confidence_div_diff = 5;      // number of consecutive negative object detections to be sure we are obstacle free for orange detection
 const int16_t max_trajectory_confidence_div_size = 5;      // number of consecutive negative object detections to be sure we are obstacle free for orange detection
 
@@ -185,17 +190,23 @@ void orange_avoider_periodic(void)
   //VERBOSE_PRINT("Color_count: %d  threshold: %d state: %d \n", color_count, color_count_threshold, navigation_state); // Print visual detection pixel colour values and navigation state
   // VERBOSE_PRINT("Divergence size: %lf Divergence threshold: %lf \n", div_size, divergence_threshold); // Print optical flow divergence size
   // VERBOSE_PRINT("Divergence difference: %lf Divergence threshold: %lf \n", div_diff, divergence_threshold); // Print optical flow divergence difference
-  // VERBOSE_PRINT("Out Of Bounds Detection: %d Orange Detection: %d Div Diff Detection: %d Div Size Detection: %d \n", out_of_bounds_detection, orange_detection, div_diff_detection, div_size_detection); // Print optical flow and orange detection
-  //VERBOSE_PRINT("Obstacle Free Confidence Orange: %d Obstacle Free Confidence Div Diff: %d Obstacle Free Confidence Div Size: %d \n", obstacle_free_confidence_orange, obstacle_free_confidence_div_diff, obstacle_free_confidence_div_size);
+  VERBOSE_PRINT("Out Of Bounds Detection: %d Orange Detection: %d Green Detection: %d \n", out_of_bounds_detection, orange_detection, green_detection); // Print optical flow and orange detection
+  VERBOSE_PRINT("Obstacle Free Confidence Orange: %d Obstacle Free Confidence Green: %d \n", obstacle_free_confidence_orange, obstacle_free_confidence_green);
   //VERBOSE_PRINT("Div Diff: %lf Div Size: %lf \n", div_diff, div_size);
   //VERBOSE_PRINT("State: %d \n", navigation_state);
-  VERBOSE_PRINT("safe_heading: %d  safe_heading_confidence: %d state: %d \n", safe_heading_g, safe_heading_confidence_g, navigation_state);
+  VERBOSE_PRINT("safe_heading: %d  safe_heading_confidence: %d green threshold: %d state: %d \n", safe_heading_g, safe_heading_confidence_g, floor_count_threshold, navigation_state);
   
   ////// DETERMINE OBSTACLE FREE CONFIDENCE //////
   if (color_count < color_count_threshold) {
     obstacle_free_confidence_orange++;
   } else {
     obstacle_free_confidence_orange -= 2; // Be more cautious with positive obstacle detections
+  }
+
+  if (safe_heading_confidence_g < floor_count_threshold) {
+    obstacle_free_confidence_green++;
+  } else {
+    obstacle_free_confidence_green -= 2;
   }
 
   // if (fabs(div_diff) < divergence_difference_threshold) {
@@ -212,6 +223,9 @@ void orange_avoider_periodic(void)
 
   // Bound obstacle_free_confidence_orange
   Bound(obstacle_free_confidence_orange, 0, max_trajectory_confidence_orange);
+
+  // Bound obstacle_free_confidence_orange
+  Bound(obstacle_free_confidence_green, 0, max_trajectory_confidence_green);
 
   // // Bound obstacle_free_confidence_div_diff
   // Bound(obstacle_free_confidence_div_diff, 0, max_trajectory_confidence_div_diff);
@@ -251,16 +265,13 @@ void orange_avoider_periodic(void)
       } else if (obstacle_free_confidence_orange == 0) {
         orange_detection = 1;
         navigation_state = TURN;
-      // } else if (obstacle_free_confidence_div_diff == 0) {
-      //   div_diff_detection = 1;
-      //   navigation_state = TURN;
-      // } else if (obstacle_free_confidence_div_size == 0) {
-      //   div_size_detection = 1;
-      //   navigation_state = RETURN;
-      // } 
+      } else if (obstacle_free_confidence_green == 0) {
+        green_detection = 1;
+        navigation_state = TURN;
       } else {
         out_of_bounds_detection = 0;
         orange_detection = 0;
+        green_detection = 0;
         // div_diff_detection = 0;
         // div_size_detection = 0;
         moveWaypointForward(WP_GOAL, moveDistance);
@@ -275,6 +286,13 @@ void orange_avoider_periodic(void)
       } else {
         increase_nav_heading(heading_increment_CW);
       }
+
+      if (obstacle_free_confidence_green >= 3) {
+        navigation_state = SAFE;
+      } else {
+        increase_nav_heading(safe_heading_g * safe_heading_increment);
+      }
+
 
       // if (obstacle_free_confidence_div_diff >= 3) {
       //   navigation_state = SAFE;
