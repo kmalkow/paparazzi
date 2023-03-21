@@ -82,7 +82,7 @@ int out_of_bounds_detection = 0;                         // used for debugging, 
 
 int32_t color_count = 0;                                 // orange color count from color filter for obstacle detection
 float oa_color_count_frac = 0.18f;
-int32_t floor_count_threshold = 290;
+int32_t floor_count_threshold = 300;
 
 int32_t safe_heading_g;
 int32_t safe_heading_increment = 10;                       // CW heading angle increment [deg]
