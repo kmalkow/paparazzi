@@ -336,14 +336,14 @@ uint32_t find_object_centroid(struct image_t *img, int32_t *p_xc, int32_t *p_yc,
     int32_t img_segments = 3;
     int32_t mid_segment = 1;
     int32_t cnt_green = 0;
-    int32_t cnt_green_ref = 0;
+    int32_t cnt_other = 0;
 
     
     // define settings
     //float oag_color_count_frac = 0.18f;       // obstacle detection threshold as a fraction of total of image
     float oag_floor_count_frac = 0.05f;       // floor detection threshold as a fraction of total of image
     int32_t color_count_per_img_segment_arr[img_segments]; /// array storing number of green pixels for each of the 5 segments of the photo
-    int32_t color_count_per_img_segment_arr_ref[img_segments];
+    int32_t color_count_per_img_segment_arr_other[img_segments];
     int64_t floor_threshold_per_segment_arr[img_segments];
 
     // ORANGE
@@ -398,7 +398,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t *p_xc, int32_t *p_yc,
 
         // Reinitialize the green count per section
         cnt_green = 0;
-        cnt_green_ref = 0;
+        cnt_other = 0;
 
         // Go through all the pixels
         for (uint32_t y = start_y; y < end_y; y++) {
@@ -428,16 +428,9 @@ uint32_t find_object_centroid(struct image_t *img, int32_t *p_xc, int32_t *p_yc,
 
                     // TODO: remove the following line when debugging is over
                     *yp_green = 0;  // make pixel dark in the image
-                }
-               
-                /// GREEN REF
-                if ((*yp_green >= lum_min_green_ref) && (*yp_green <= lum_max_green_ref) &&
-                    (*up_green >= cb_min_green_ref) && (*up_green <= cb_max_green_ref) &&
-                    (*vp_green >= cr_min_green_ref) && (*vp_green <= cr_max_green_ref)) {
-                    cnt_green_ref++;
-
-                    // TODO: remove the following line when debugging is over
-                    *yp_green = 255;  // make pixel dark in the image
+                } else {
+                    cnt_other++;
+                    *yp_green = 255;
                 }
             }
         }
@@ -447,7 +440,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t *p_xc, int32_t *p_yc,
         floor_threshold_per_segment_arr[i] = oag_floor_count_frac * (end_y-start_y) * img->w;
         //Compute the green color count per each of the segments of the photo
         color_count_per_img_segment_arr[i] = cnt_green;
-        color_count_per_img_segment_arr_ref[i] = cnt_green_ref;
+        color_count_per_img_segment_arr_other[i] = cnt_other;
 
     }
 
@@ -464,11 +457,11 @@ uint32_t find_object_centroid(struct image_t *img, int32_t *p_xc, int32_t *p_yc,
     bool atLeastOneAboveTh = false;
     int32_t margin_between_min_max = 70;
     bool above_th_arr[img_segments];
-    bool green_ref_detection;
-    float oa_green_ref_color_count_frac = 0.02f;       // range = [0.01, 0.015], obstacle detection threshold as a fraction of middle segment
-    int64_t floor_threshold_green_ref = img->h/3 * img->w * oa_green_ref_color_count_frac;
+    bool other_detection;
+    float oa_other_color_count_frac = 0.02f;       // range = [0.01, 0.015], obstacle detection threshold as a fraction of middle segment
+    int64_t floor_threshold_green_ref = img->h/3 * img->w * oa_other_color_count_frac;
 
-    green_ref_detection = color_count_per_img_segment_arr_ref[mid_segment] > floor_threshold_green_ref;
+    other_detection = color_count_per_img_segment_arr_other[mid_segment] > floor_threshold_green_ref;
     
     // Check if the maximum color count is above the threshold and find the direction with the maximum color count
     for (int i = 0; i < img_segments; i++) {
@@ -500,7 +493,7 @@ uint32_t find_object_centroid(struct image_t *img, int32_t *p_xc, int32_t *p_yc,
         maxIndex = 3; // corresponds to 404 direction value (other than 0, 1 and 2)
     }
 
-    PRINT("Green Ref Colour Count: %ld; Green Ref Detected: %d \n", color_count_per_img_segment_arr_ref[mid_segment], green_ref_detection);
+    PRINT("Green Ref Colour Count: %ld; Green Ref Detected: %d \n", color_count_per_img_segment_arr_other[mid_segment], green_ref_detection);
     PRINT("S-1 %ld, S0 %ld, S1 %ld \n", color_count_per_img_segment_arr[0], color_count_per_img_segment_arr[1], color_count_per_img_segment_arr[2]);
     PRINT("TH-1 %ld, TH0 %ld, TH1 %ld \n", floor_threshold_per_segment_arr[0], floor_threshold_per_segment_arr[1], floor_threshold_per_segment_arr[2]);
     // set output variables
