@@ -106,8 +106,10 @@ const int16_t max_trajectory_confidence_floor = 5;      // Number of consecutive
 const int16_t max_trajectory_confidence_opticalflow = 5; // Number of consecutive negative object detections to be sure we are obstacle free for divergence size detection
 
 // Distances:
-float maxDistance = 0.5;                                 // Max waypoint displacement [m]
-float moveDistance = 0.0f;                                // Waypoint displacement [m] 
+// float maxDistance = 0.5;                                 // Max waypoint displacement [m]
+// float moveDistance = 0.0f;                                // Waypoint displacement [m] 
+float max_speed = 0.5f;                                  // max flight speed [m/s]
+float speed_sp = 0.0f;
 
 // Heading:
 const float heading_magnitude = 5.f;                     // Heading angle magnitude [deg]
@@ -198,6 +200,15 @@ void orange_avoider_periodic(void)
 {
   ////// ONLY EVALUATE STATE MACHINE IF FLYING //////
   if(!autopilot_in_flight()){
+    PRINT("Returning due to autopilot: \n");
+    return;
+  }
+
+  // Only run the mudule if we are in the correct flight mode
+  if (guidance_h.mode != GUIDANCE_H_MODE_GUIDED) {
+    navigation_state = SEARCH_SAFE_HEADING;
+    obstacle_free_confidence_orange = 0;
+    PRINT("Returning due to guidance: \n");
     return;
   }
 
@@ -241,7 +252,7 @@ void orange_avoider_periodic(void)
   // PRINT("[ORANGE] Obstacle Free Confidence: %d; Orange Count: %d; Orange Threshold: %d \n", obstacle_free_confidence_orange, color_count, color_count_threshold); // Print obstacle free confidence for orange and visual detection pixel colour values
   
   // Floor/Green detection:
-  PRINT("[GREEN] Obstacle Free Confidence: %d; Safe Heading: %d \n", obstacle_free_confidence_floor, safe_heading_green); // Print safe heading green
+  // PRINT("[GREEN] Obstacle Free Confidence: %d; Safe Heading: %d \n", obstacle_free_confidence_floor, safe_heading_green); // Print safe heading green
 
   // Divergence size detection:
   // PRINT("[DIV_SIZE] Obstacle Free Confidence: %d; Size: %lf; Threshold: %f \n", obstacle_free_confidence_div_size, div_size, divergence_threshold); // Print div_size
@@ -259,18 +270,29 @@ void orange_avoider_periodic(void)
   // Constant velocity:
   // moveDistance = maxDistance;
   
-  float moveDistance_temp = fminf(0.2f * obstacle_free_confidence_orange, 0.2f * obstacle_free_confidence_floor);
-  float moveDistance_temp2 = fminf(moveDistance_temp, 0.2f * obstacle_free_confidence_div_size);
-  moveDistance = fminf(maxDistance, moveDistance_temp2);
+  // float moveDistance_temp = fminf(0.2f * obstacle_free_confidence_orange, 0.2f * obstacle_free_confidence_floor);
+  // float moveDistance_temp2 = fminf(moveDistance_temp, 0.2f * obstacle_free_confidence_div_size);
+  // moveDistance = fminf(maxDistance, moveDistance_temp2);
+
+  float speed_sp_temp = fminf(0.2f * obstacle_free_confidence_orange, 0.2f * obstacle_free_confidence_floor);
+  float speed_sp_temp2 = fminf(speed_sp_temp, 0.2f * obstacle_free_confidence_div_size);
+  speed_sp = fminf(max_speed, speed_sp_temp2);
+
+  PRINT(" GetPosX(): %lf; GetPosY(): %lf; Inside?: %d", GetPosX(), GetPosY(), InsideObstacleZone(GetPosX(), GetPosY()));
 
   ////// NAVIGATION STATE MACHINE //////
   switch (navigation_state) {
     case SAFE:
       // Move TRAJECTORY waypoint forwards:
-      moveWaypointForward(WP_TRAJECTORY, 1.9f * moveDistance);
+      //moveWaypointForward(WP_TRAJECTORY, 1.9f * moveDistance);
       
       // OUT OF BOUNDS CHECK:
-      if (!InsideObstacleZone(WaypointX(WP_TRAJECTORY), WaypointY(WP_TRAJECTORY))) 
+      // if (!InsideObstacleZone(WaypointX(WP_TRAJECTORY), WaypointY(WP_TRAJECTORY))) 
+      // {
+      //   navigation_state = OUT_OF_BOUNDS;
+      // } 
+
+      if (!InsideObstacleZone(GetPosX(), GetPosY())) 
       {
         navigation_state = OUT_OF_BOUNDS;
       } 
@@ -281,17 +303,17 @@ void orange_avoider_periodic(void)
         navigation_state = SEARCH_SAFE_HEADING;
         search_safe_heading_state = ORANGE;
       } 
-      // FLOOR OBSTACLE DETECTION:
-      else if (abs(safe_heading_green) == 1) {
-        navigation_state = SEARCH_SAFE_HEADING;
-        search_safe_heading_state = GREEN;
-      } 
+      // // FLOOR OBSTACLE DETECTION:
+      // else if (abs(safe_heading_green) == 1) {
+      //   navigation_state = SEARCH_SAFE_HEADING;
+      //   search_safe_heading_state = GREEN;
+      // } 
       // FLOOR "ERROR 404" (Does not understand what is happening so turn around):
-      else if (safe_heading_green == 404) 
-      {
-        navigation_state = TURN_AROUND;
-        turn_around_state = GREEN_TURN_AROUND;
-      } 
+      // else if (safe_heading_green == 404) 
+      // {
+      //   navigation_state = TURN_AROUND;
+      //   turn_around_state = GREEN_TURN_AROUND;
+      // } 
       // DIVERGENCE SIZE DETECTION:
       else if (obstacle_free_confidence_div_size == 0) 
       {
@@ -301,7 +323,8 @@ void orange_avoider_periodic(void)
       // IF NO ABOVE CONDITION MET -> Move GOAL waypoint forwards
       else 
       {
-        moveWaypointForward(WP_GOAL, moveDistance);
+        //moveWaypointForward(WP_GOAL, moveDistance);
+        guidance_h_set_body_vel(speed_sp, 0);
       }
       // If next state is to search for a safe heading, set the heading increment to random (only for orange detections)
       if (navigation_state == SEARCH_SAFE_HEADING) {
@@ -398,9 +421,20 @@ void orange_avoider_periodic(void)
       increase_nav_heading(heading_increment_OOB);
       
       // Move waypoint forward
-      moveWaypointForward(WP_TRAJECTORY, 2.1f);
+      // moveWaypointForward(WP_TRAJECTORY, 2.1f);
+      guidance_h_set_body_vel(speed_sp, 0);
 
-      if (InsideObstacleZone(WaypointX(WP_TRAJECTORY), WaypointY(WP_TRAJECTORY))) {
+      // if (InsideObstacleZone(WaypointX(WP_TRAJECTORY), WaypointY(WP_TRAJECTORY))) {
+      //   // Add offset to head back into arena
+      //   increase_nav_heading(heading_increment_OOB);
+      //   // Set confidence to 0
+      //   obstacle_free_confidence_orange = 0;
+      //   obstacle_free_confidence_div_size = 0;
+      //   // Assume there is an obstacle to be safe (just in case)
+      //   navigation_state = SAFE;
+      // }
+
+      if (InsideObstacleZone(GetPosX(), GetPosY())) {
         // Add offset to head back into arena
         increase_nav_heading(heading_increment_OOB);
         // Set confidence to 0
