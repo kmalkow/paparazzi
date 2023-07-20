@@ -91,7 +91,7 @@ print(frame_height)
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 
 # Create VideoWriter object 
-out = cv2.VideoWriter('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/video_recordings/Paparazzi_TestV2.mp4', fourcc, FPS, (frame_width, frame_height))
+out = cv2.VideoWriter('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/video_recordings/VALKENBURG_Test1.mp4', fourcc, FPS, (frame_width, frame_height))
 
 # Measure start time
 start_time = time.time()
@@ -224,24 +224,24 @@ while(cap.isOpened()):
     print('Error: frame not retrieved')  
     break
 
-# #  ------------------------------------------------------------------------- #
-# #                          SAVE MEASURED VARIABLES                           #
-# #  ------------------------------------------------------------------------- #
-# with open('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/measurement_results/OUTDOOR_VALKENBURG_14_07_23_TEST1_X', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(X_m, time_m))
+#  ------------------------------------------------------------------------- #
+#                          SAVE MEASURED VARIABLES                           #
+#  ------------------------------------------------------------------------- #
+with open('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/measurement_results/OUTDOOR_VALKENBURG_20_07_23_TEST1_X', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(X_m, time_m))
 
-# with open('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/measurement_results/OUTDOOR_VALKENBURG_14_07_23_TEST1_Y', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Y_m, time_m))
+with open('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/measurement_results/OUTDOOR_VALKENBURG_20_07_23_TEST1_Y', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Y_m, time_m))
 
-# with open('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/measurement_results/OUTDOOR_VALKENBURG_14_07_23_TEST1_Z', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(Z_m, time_m))
+with open('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/measurement_results/OUTDOOR_VALKENBURG_20_07_23_TEST1_Z', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(Z_m, time_m))
 
-# with open('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/measurement_results/OUTDOOR_VALKENBURG_14_07_23_TEST1_Dist', 'w') as csvfile:
-#     writer=csv.writer(csvfile, delimiter=',')
-#     writer.writerows(zip(EuclideanDistance_m, time_m))
+with open('/home/kevin/paparazzi/sw/ground_segment/python/aruco_marker/measurement_results/OUTDOOR_VALKENBURG_20_07_23_TEST1_Dist', 'w') as csvfile:
+    writer=csv.writer(csvfile, delimiter=',')
+    writer.writerows(zip(EuclideanDistance_m, time_m))
 
 #  ------------------------------------------------------------------------- #
 #                          SAVE MEASURED VARIABLES                           #
